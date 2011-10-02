@@ -1,0 +1,1158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model version="2.0.00" framework="qpcpp">
+ <package name="Events" stereotype="0x01">
+  <class name="FocusMovedEvt" superclass="qpcpp::QEvent">
+   <attribute name="focus_position" type="uint16_t" visibility="0x00" properties="0x00"/>
+  </class>
+ </package>
+ <package name="AOs" stereotype="0x02">
+  <class name="Controls" superclass="qpcpp::QActive">
+   <documentation>Button interface. Transforms single presses, double presses, long presses to commands</documentation>
+   <attribute name="lp_timeout" type="QTimeEvt" visibility="0x02" properties="0x00">
+    <documentation>Long press time</documentation>
+   </attribute>
+   <operation name="Controls" type="QActive((QStateHandler)&amp;Controls::initial), lp_timeout(LP_TIMEOUT_SIG)" visibility="0x00" properties="0x02"/>
+   <statechart>
+    <initial target="../1">
+     <action>//Serial.println(&quot;Intf.initial&quot;);
+</action>
+     <initial_glyph conn="24,4,4,0,3">
+      <action box="0,-2,6,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="Buttons">
+     <entry>//Serial.println(&quot;Intf.entry&quot;);
+</entry>
+     <exit>me-&gt;lp_timeout.disarm();
+me-&gt;lp_timeout.postIn(me, LP_TIMEOUT);</exit>
+     <tran trig="N_PRESS" target="../../2">
+      <action brief="set long press \timeout for N">//Serial.println(&quot;N Pressed&quot;);
+//me-&gt;lp_timeout.postIn(me, LP_TIMEOUT);
+</action>
+      <tran_glyph conn="43,16,1,3,25">
+       <action box="6,-4,16,4"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="F_PRESS" target="../../3">
+      <action brief="set long press \timeout for F">//Serial.println(&quot;F Pressed&quot;);
+//me-&gt;lp_timeout.postIn(me, LP_TIMEOUT);</action>
+      <tran_glyph conn="43,33,1,3,25">
+       <action box="6,-5,16,5"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="G_PRESS" target="../../4">
+      <action brief="set long press \timeout for G">//Serial.println(&quot;G Pressed&quot;);
+//me-&gt;lp_timeout.postIn(me, LP_TIMEOUT);</action>
+      <tran_glyph conn="43,53,1,3,23">
+       <action box="1,-5,19,4"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="23,7,20,65">
+      <entry box="1,2,5,2"/>
+      <exit box="1,4,5,2"/>
+     </state_glyph>
+    </state>
+    <state name="N_Handler">
+     <tran trig="N_RELEASE" target="../../1">
+      <action brief="post one near step \if timeout hasn't expired">if( me-&gt;lp_timeout.disarm() == 1 ) {
+    AO_Camera-&gt;postFIFO(Q_NEW(QEvent, NEAR_STEP_SIG));
+}</action>
+      <tran_glyph conn="68,22,3,1,-25">
+       <action box="-22,-5,21,5"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="LP_TIMEOUT" target="../../1">
+      <action brief="post NEAR_SET">AO_Camera-&gt;postFIFO(Q_NEW(QEvent, NEAR_SET_SIG));
+//Serial.println(&quot;N Longpress&quot;);</action>
+      <tran_glyph conn="68,26,3,1,-25">
+       <action box="-20,-3,19,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="68,14,11,14"/>
+    </state>
+    <state name="F_Handler">
+     <tran trig="F_RELEASE" target="../../1">
+      <action brief="post one far step \if timeout hasn't expired">if( me-&gt;lp_timeout.disarm() == 1 ) {
+    AO_Camera-&gt;postFIFO(Q_NEW(QEvent, FAR_STEP_SIG));
+}</action>
+      <tran_glyph conn="68,39,3,1,-25">
+       <action box="-23,-5,20,4"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="LP_TIMEOUT" target="../../1">
+      <action brief="post FAR_SET">AO_Camera-&gt;postFIFO(Q_NEW(QEvent, FAR_SET_SIG));
+//Serial.println(&quot;F Longpress&quot;);</action>
+      <tran_glyph conn="68,43,3,1,-25">
+       <action box="-20,-3,18,3"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="68,31,12,16"/>
+    </state>
+    <state name="G_Handler">
+     <tran trig="G_RELEASE" target="../../1">
+      <action brief="post RUN \if timeout hasn't expired">if( me-&gt;lp_timeout.disarm() == 1 ) {
+    AO_Camera-&gt;postFIFO(Q_NEW(QEvent, RUN_SIG));
+}
+</action>
+      <tran_glyph conn="66,58,3,1,-23">
+       <action box="-22,-4,17,4"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="LP_TIMEOUT" target="../../1">
+      <action brief="post FREERUN">AO_Camera-&gt;postFIFO(Q_NEW(QEvent, FREERUN_SIG));
+//AO_Lights-&gt;postFIFO(Q_NEW(QEvent, LED_WORKING_SIG));
+//Serial.println(&quot;G_Free run&quot;);
+</action>
+      <tran_glyph conn="66,64,3,1,-23">
+       <action box="-22,-3,18,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="66,51,13,17"/>
+    </state>
+    <state_diagram size="117,80"/>
+   </statechart>
+  </class>
+  <class name="Camera" superclass="qpcpp::QActive">
+   <documentation>Camera control</documentation>
+   <attribute name="n_point" type="uint16_t" visibility="0x02" properties="0x00">
+    <documentation>near focus point</documentation>
+   </attribute>
+   <attribute name="f_point" type="uint16_t" visibility="0x02" properties="0x00">
+    <documentation>far focus point</documentation>
+   </attribute>
+   <attribute name="focus_position" type="uint16_t" visibility="0x02" properties="0x00"/>
+   <operation name="Camera" type="QActive((QStateHandler)&amp;Camera::initial), n_point(0x7fff), f_point(0x7fff), focus_position(0x7fff)" visibility="0x00" properties="0x02"/>
+   <statechart>
+    <initial target="../1">
+     <initial_glyph conn="5,2,5,0,40,2">
+      <action box="0,-2,6,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="operation">
+     <tran trig="CAM_DISC" target="../2">
+      <tran_glyph conn="4,85,3,3,16">
+       <action box="0,-2,12,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="CAM_READY" target="../3">
+      <action>AO_Lights-&gt;postFIFO(Q_NEW(QEvent, LED_IDLE_SIG));
+</action>
+      <tran_glyph conn="4,22,3,3,11">
+       <action box="0,-2,16,2"/>
+      </tran_glyph>
+     </tran>
+     <state name="disconnected">
+      <entry>Notify(PSTR(&quot;Camera offline\r\n&quot;));
+AO_Lights-&gt;postFIFO(Q_NEW(QEvent, LED_ERROR_SIG));
+</entry>
+      <state_glyph node="20,82,13,5">
+       <entry box="1,2,5,2"/>
+      </state_glyph>
+     </state>
+     <state name="control">
+      <entry>//Notify(PSTR(&quot;AO Camera: Control Entry\r\n&quot;));
+</entry>
+      <exit>//Notify(PSTR(&quot;AO Camera: Control Exit\r\n&quot;));</exit>
+      <tran trig="NEAR_SET">
+       <action>//Serial.println(&quot;Near Set&quot;);
+me-&gt;n_point = me-&gt;focus_position;
+AO_Lights-&gt;postFIFO(Q_NEW(QEvent, LED_WORKING_SIG));</action>
+       <tran_glyph conn="15,19,3,-1,11">
+        <action box="0,-2,9,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="FAR_SET">
+       <action>//Serial.println(&quot;Far Set&quot;);
+me-&gt;f_point = me-&gt;focus_position;
+AO_Lights-&gt;postFIFO(Q_NEW(QEvent, LED_WORKING_SIG));
+</action>
+       <tran_glyph conn="15,32,3,-1,13">
+        <action box="0,-2,9,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="RUN" target="../7">
+       <action>//Notify(PSTR(&quot;AO_Cam: Run Signal\r\n&quot;));
+</action>
+       <tran_glyph conn="15,40,3,3,17">
+        <action box="0,-2,6,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="FREERUN" target="../7">
+       <action>//Notify(PSTR(&quot;AO_Cam: FreeRun Signal\r\n&quot;));
+me-&gt;f_point = 0xffff;    //set far point as far as possible
+me-&gt;n_point = me-&gt;focus_position;</action>
+       <tran_glyph conn="15,43,3,3,17">
+        <action box="0,-2,8,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="NEAR_STEP">
+       <action>AO_Commands-&gt;postFIFO(Q_NEW(QEvent, NEAR_STEP_SIG));</action>
+       <tran_glyph conn="15,16,3,-1,11">
+        <action box="0,-2,10,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="FAR_STEP">
+       <action>AO_Commands-&gt;postFIFO(Q_NEW(QEvent, FAR_STEP_SIG));</action>
+       <tran_glyph conn="15,28,3,-1,13">
+        <action box="0,-2,9,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="FOCUS_MOVED">
+       <action>me-&gt;focus_position = ((FocusMovedEvt *)e)-&gt;focus_position;</action>
+       <tran_glyph conn="15,37,3,-1,13">
+        <action box="0,-2,12,2"/>
+       </tran_glyph>
+      </tran>
+      <state name="run">
+       <entry>//Notify(PSTR(&quot;AO_Camera: Run Entry\r\n&quot;));
+if( me-&gt;focus_position == me-&gt;n_point ) {    //lens at near point
+    me-&gt;postFIFO(Q_NEW(QEvent, SHOOT_SIG));
+    }
+    else {
+        if( me-&gt;focus_position &gt; me-&gt;n_point ) { //step back to N-point
+            AO_Commands-&gt;postFIFO(Q_NEW(QEvent, NEAR_STEP_SIG));
+        }
+        else {                                    //step forward to N-point
+            AO_Commands-&gt;postFIFO(Q_NEW(QEvent, FAR_STEP_SIG));
+        }
+    }
+</entry>
+       <exit>//Notify(PSTR(&quot;AO_Camera: Run Exit\r\n&quot;));</exit>
+       <tran trig="SHOOT" target="../4">
+        <action>//Notify(PSTR(&quot;Time to Shoot\r\n&quot;));</action>
+        <tran_glyph conn="32,37,3,3,7">
+         <action box="0,-2,8,2"/>
+        </tran_glyph>
+       </tran>
+       <tran trig="FOCUS_MOVED" target="..">
+        <action>me-&gt;focus_position = ((FocusMovedEvt *)e)-&gt;focus_position;</action>
+        <tran_glyph conn="67,44,1,1,6,11,-6">
+         <action box="0,-3,12,2"/>
+        </tran_glyph>
+       </tran>
+       <tran trig="NEAR_STEP" target="../..">
+        <tran_glyph conn="32,46,3,3,-17">
+         <action box="-10,-2,10,2"/>
+        </tran_glyph>
+       </tran>
+       <tran trig="FAR_STEP" target="../..">
+        <tran_glyph conn="32,49,3,3,-17">
+         <action box="-9,-2,8,2"/>
+        </tran_glyph>
+       </tran>
+       <state name="shoot">
+        <entry>//Notify(PSTR(&quot;AO_Camera: Shoot Entry\r\n&quot;));
+if( me-&gt;focus_position &lt;= me-&gt;f_point ) {
+    AO_Commands-&gt;postFIFO(Q_NEW(QEvent, CAPTURE_SIG));
+}
+</entry>
+        <tran trig="CAP_COMPLETE">
+         <action>AO_Commands-&gt;postFIFO(Q_NEW(QEvent, FAR_STEP_SIG));</action>
+         <tran_glyph conn="39,40,3,-1,11">
+          <action box="0,-2,12,2"/>
+         </tran_glyph>
+        </tran>
+        <tran trig="FOCUS_MOVED" target="..">
+         <action>me-&gt;focus_position = ((FocusMovedEvt *)e)-&gt;focus_position;</action>
+         <tran_glyph conn="54,39,1,1,11,3,-11">
+          <action box="0,-2,11,2"/>
+         </tran_glyph>
+        </tran>
+        <state_glyph node="39,29,15,25">
+         <entry box="1,2,5,2"/>
+        </state_glyph>
+       </state>
+       <state_glyph node="32,24,35,33">
+        <entry box="1,2,5,2"/>
+        <exit box="1,4,5,2"/>
+       </state_glyph>
+      </state>
+      <state_glyph node="15,7,85,55">
+       <entry box="1,2,5,2"/>
+       <exit box="1,4,5,2"/>
+      </state_glyph>
+     </state>
+     <state_glyph node="4,4,101,88"/>
+    </state>
+    <state_diagram size="130,98"/>
+   </statechart>
+  </class>
+  <class name="Lights" superclass="qpcpp::QActive">
+   <documentation>LED control</documentation>
+   <attribute name="led_per_timeout" type="QTimeEvt" visibility="0x02" properties="0x00"/>
+   <attribute name="led_on_timeout" type="QTimeEvt" visibility="0x02" properties="0x00"/>
+   <attribute name="led_flash_cnt" type="uint8_t" visibility="0x02" properties="0x00">
+    <documentation>LED flash counter</documentation>
+   </attribute>
+   <attribute name="period_time" type="uint8_t" visibility="0x02" properties="0x00"/>
+   <attribute name="on_time" type="uint8_t" visibility="0x02" properties="0x00"/>
+   <attribute name="led_work_timeout" type="QTimeEvt" visibility="0x02" properties="0x00"/>
+   <operation name="Lights" type="QActive((QStateHandler)&amp;Lights::initial), led_per_timeout(LED_PER_TIMEOUT_SIG), led_on_timeout(LED_ON_TIMEOUT_SIG), led_work_timeout(LED_WORK_TIMEOUT_SIG)" visibility="0x00" properties="0x02"/>
+   <statechart>
+    <initial target="../1">
+     <initial_glyph conn="15,11,5,0,51,2">
+      <action box="0,-2,6,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="Blinker">
+     <entry>//Notify(PSTR(&quot;Blinker entry\r\n&quot;));
+</entry>
+     <exit>//Notify(PSTR(&quot;Blinker exit\r\n&quot;));</exit>
+     <tran trig="LED_IDLE" target="../3">
+      <action brief="set Idle \LED Sequence">me-&gt;period_time = LED_IDLE_PER_TIME;
+me-&gt;on_time = LED_IDLE_ON_TIME;</action>
+      <tran_glyph conn="13,23,3,3,17">
+       <action box="1,-4,13,4"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="LED_WORKING" target="../../2">
+      <tran_glyph conn="13,47,3,3,60">
+       <action box="0,-2,14,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="LED_ERROR" target="../3">
+      <action brief="set Error \LED Sequence">me-&gt;period_time = LED_ERR_PER_TIME;
+me-&gt;on_time = LED_ERR_ON_TIME;</action>
+      <tran_glyph conn="13,32,3,3,17">
+       <action box="1,-4,15,4"/>
+      </tran_glyph>
+     </tran>
+     <state name="led_periodic">
+      <entry>//Notify(PSTR(&quot;AO_Lights: LED Periodic Entry\r\n&quot;));
+LED_ON();
+me-&gt;led_per_timeout.disarm();
+me-&gt;led_on_timeout.disarm();
+me-&gt;led_per_timeout.postIn(me, me-&gt;period_time);
+me-&gt;led_on_timeout.postIn(me, me-&gt;on_time);</entry>
+      <exit>//Notify(PSTR(&quot;AO_Lights: LED Periodic Exit\r\n&quot;));</exit>
+      <tran trig="LED_PER_TIMEOUT">
+       <action>LED_ON();
+me-&gt;led_on_timeout.postIn(me, me-&gt;on_time);
+me-&gt;led_per_timeout.postIn(me, me-&gt;period_time);</action>
+       <tran_glyph conn="30,26,3,-1,14">
+        <action box="0,-2,13,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="LED_ON_TIMEOUT">
+       <action>LED_OFF();</action>
+       <tran_glyph conn="30,30,3,-1,14">
+        <action box="0,-2,14,2"/>
+       </tran_glyph>
+      </tran>
+      <state_glyph node="30,18,19,18">
+       <entry box="1,2,5,2"/>
+       <exit box="1,4,5,2"/>
+      </state_glyph>
+     </state>
+     <state_glyph node="13,13,56,50">
+      <entry box="1,2,5,2"/>
+      <exit box="1,4,5,2"/>
+     </state_glyph>
+    </state>
+    <state name="led_working">
+     <entry>//Notify(PSTR(&quot;AO_Lights: LED Working Entry\r\n&quot;));
+me-&gt;led_work_timeout.postEvery(me, LED_WORKING_FLASH_TIME);
+me-&gt;led_flash_cnt = LED_WORKING_FLASH_CNT*2 + 1;
+</entry>
+     <exit>//Notify(PSTR(&quot;AO_Lights: LED Working Exit\r\n&quot;));
+me-&gt;led_work_timeout.disarm();</exit>
+     <tran trig="LED_WORK_TIMEOUT">
+      <choice guard="me-&gt;led_flash_cnt != 0">
+       <action>--me-&gt;led_flash_cnt;</action>
+       <choice guard="(me-&gt;led_flash_cnt &amp; 1 ) == 0">
+        <action>LED_ON();</action>
+        <choice_glyph conn="101,52,5,-1,11">
+         <action box="1,0,11,8"/>
+        </choice_glyph>
+       </choice>
+       <choice guard="else">
+        <action>LED_OFF();</action>
+        <choice_glyph conn="101,52,4,-1,-4,11">
+         <action box="0,-7,6,2"/>
+        </choice_glyph>
+       </choice>
+       <choice_glyph conn="86,52,5,-1,15">
+        <action box="1,0,12,7"/>
+       </choice_glyph>
+      </choice>
+      <choice guard="else" target="../../../1/3">
+       <action>LED_OFF();
+//return Q_TRAN(me-&gt;led_history); //transition to history
+</action>
+       <choice_glyph conn="86,52,4,2,-14,-49,-2">
+        <action box="1,-6,12,2"/>
+       </choice_glyph>
+      </choice>
+      <tran_glyph conn="73,52,3,-1,13">
+       <action box="0,-2,12,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="73,42,41,18">
+      <entry box="1,2,5,2"/>
+      <exit box="1,4,5,2"/>
+     </state_glyph>
+    </state>
+    <state_diagram size="128,73"/>
+   </statechart>
+  </class>
+  <class name="Usbtask" superclass="qpcpp::QActive">
+   <documentation>AO to run USB Task. To be moved somewhere else.</documentation>
+   <attribute name="usb_tick" type="QTimeEvt" visibility="0x02" properties="0x00"/>
+   <operation name="Usbtask" type="QActive((QStateHandler)&amp;Usbtask::initial), usb_tick(USB_TICK_SIG)" visibility="0x00" properties="0x02"/>
+   <statechart>
+    <initial target="../1">
+     <action>me-&gt;usb_tick.postIn(me, USB_TICK_TIME);</action>
+     <initial_glyph conn="18,11,4,0,3">
+      <action box="0,-2,6,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="usb_task">
+     <entry>//Notify(PSTR(&quot;AO_UT Entry\r\n&quot;));</entry>
+     <tran trig="USB_TICK">
+      <action>//Notify(PSTR(&quot;AO_UT USB_TICK_SIG\r\n&quot;));
+O_usb-&gt;Task();
+me-&gt;usb_tick.postIn(me, USB_TICK_TIME);
+</action>
+      <tran_glyph conn="13,31,3,-1,12">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="13,14,38,36">
+      <entry box="1,2,5,2"/>
+     </state_glyph>
+    </state>
+    <state_diagram size="127,76"/>
+   </statechart>
+  </class>
+  <class name="Commands" superclass="qpcpp::QActive">
+   <documentation>Camera Commands</documentation>
+   <attribute name="cmd_delay" type="QTimeEvt" visibility="0x02" properties="0x00">
+    <documentation>PTP command delay</documentation>
+   </attribute>
+   <attribute name="fstep_cmd" type="uint16_t" visibility="0x02" properties="0x00">
+    <documentation>focusing step property value</documentation>
+   </attribute>
+   <attribute name="focus_position" type="uint16_t" visibility="0x02" properties="0x00"/>
+   <operation name="Commands" type="QActive((QStateHandler)&amp;Commands::initial), cmd_delay(CMD_DELAY_SIG), focus_position(0x7fff)" visibility="0x00" properties="0x02">
+    <documentation>camera control commands</documentation>
+   </operation>
+   <statechart>
+    <initial target="../1">
+     <initial_glyph conn="8,3,5,0,6,2">
+      <action box="0,-2,6,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="idle">
+     <entry>//Notify(PSTR(&quot;AO_Commands: Idle Entry\r\n&quot;));</entry>
+     <exit>//Notify(PSTR(&quot;AO_Commands: Idle Exit\r\n&quot;));</exit>
+     <tran trig="NEAR_STEP" target="../../2">
+      <action>me-&gt;fstep_cmd = NSTEP;</action>
+      <tran_glyph conn="6,11,3,3,30">
+       <action box="7,-2,9,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="FAR_STEP" target="../../2">
+      <action>me-&gt;fstep_cmd = FSTEP;
+</action>
+      <tran_glyph conn="6,16,3,3,30">
+       <action box="7,-2,8,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="CAPTURE" target="../../3">
+      <action>//Notify(PSTR(&quot;AO_Commands: Capture Signal\r\n&quot;));</action>
+      <tran_glyph conn="6,30,3,3,30">
+       <action box="0,-2,8,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="6,5,17,36">
+      <entry box="1,2,5,2"/>
+      <exit box="1,4,5,2"/>
+     </state_glyph>
+    </state>
+    <state name="focus_move">
+     <entry>//Notify(PSTR(&quot;AO_Commands: Focus Move Entry\r\n&quot;));
+uint16_t ptp_error; 
+if((ptp_error = Eos.MoveFocus(me-&gt;fstep_cmd)) != PTP_RC_OK) {    //one step towards the camera
+    PTPTRACE2(&quot;AO_Commands: Focus Step failed&quot;, ptp_error);
+    AO_Lights-&gt;postFIFO(Q_NEW(QEvent, LED_ERROR_SIG));
+}
+
+if(me-&gt;fstep_cmd == NSTEP) {
+    --me-&gt;focus_position;
+    }
+    else {
+        ++me-&gt;focus_position;
+    }
+me-&gt;cmd_delay.disarm();        
+me-&gt;cmd_delay.postIn(me, FM_CMD_DELAY);</entry>
+     <exit>//Notify(PSTR(&quot;AO_Commands: Focus Move Exit\r\n&quot;));
+</exit>
+     <tran trig="CMD_DELAY" target="../../1">
+      <action>//Notify(PSTR(&quot;AO_Commands: Focus Move: CMD_DELAY_SIG\r\n&quot;));
+
+FocusMovedEvt *fme = Q_NEW( FocusMovedEvt, FOCUS_MOVED_SIG );
+fme-&gt;focus_position = me-&gt;focus_position;
+     
+AO_Lights-&gt;postFIFO(Q_NEW(QEvent, LED_WORKING_SIG));
+
+AO_Camera-&gt;postFIFO( fme );</action>
+      <tran_glyph conn="36,19,3,1,-13">
+       <action box="-11,-2,11,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="36,7,14,15">
+      <entry box="1,2,5,2"/>
+      <exit box="1,4,5,2"/>
+     </state_glyph>
+    </state>
+    <state name="capture">
+     <entry>//Notify(PSTR(&quot;AO_Commands: Capture Entry\r\n&quot;));
+//AO_Lights-&gt;postLIFO(Q_NEW(QEvent, ALL_LEDS_OFF_SIG));
+//me-&gt;cap_delay.postIn(me, CAP_CMD_DELAY);
+
+//uint16_t ptp_error = Eos.MoveFocus(me-&gt;fstep_cmd); /* Eos.Capture(); */
+uint16_t ptp_error = Eos.Capture();
+me-&gt;cmd_delay.postIn(me, CAP_CMD_DELAY);
+//me-&gt;cap_delay.postIn(me, CAP_CMD_DELAY);
+//AO_Camera-&gt;postFIFO(Q_NEW(QEvent, CAP_COMPLETE_SIG));
+/*
+if (ptp_error != PTP_RC_OK) {
+    PTPTRACE2(&quot;Capture Error&quot;, ptp_error);
+}
+*/
+//me-&gt;postFIFO(Q_NEW(QEvent, CMD_DELAY_SIG));
+//me-&gt;cap_delay.disarm();
+
+
+</entry>
+     <exit>//Notify(PSTR(&quot;AO_Commands: Capture Exit\r\n&quot;));
+AO_Camera-&gt;postFIFO(Q_NEW(QEvent, CAP_COMPLETE_SIG));</exit>
+     <tran trig="CMD_DELAY" target="../../1">
+      <action>//Notify(PSTR(&quot;AO_Commands: Capture Cmd Delay\r\n&quot;));</action>
+      <tran_glyph conn="36,36,3,1,-13">
+       <action box="-11,-2,11,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="36,26,15,15">
+      <entry box="1,2,5,2"/>
+      <exit box="1,4,5,2"/>
+     </state_glyph>
+    </state>
+    <state_diagram size="78,66"/>
+   </statechart>
+  </class>
+  <attribute name="AO_Controls" type="QActive * const" visibility="0x00" properties="0x00"/>
+  <attribute name="AO_Camera" type="QActive * const" visibility="0x00" properties="0x00"/>
+  <attribute name="AO_Lights" type="QActive * const" visibility="0x00" properties="0x00">
+   <documentation>opaque pointer to Lights AO</documentation>
+  </attribute>
+  <attribute name="AO_Usbtask" type="QActive * const" visibility="0x00" properties="0x00">
+   <documentation>opaque pointer to Usbtask AO</documentation>
+  </attribute>
+  <attribute name="O_usb" type="USB* const" visibility="0x00" properties="0x00"/>
+  <attribute name="AO_Commands" type="QActive * const" visibility="0x00" properties="0x00">
+   <documentation>&quot;Opaque&quot;pointer to Commands AO</documentation>
+  </attribute>
+ </package>
+ <filesystem path=".">
+  <file name="bsp.h">
+   <text>/* Focus Stacking Assistant bsp header */
+
+#ifndef bsp_h
+#define bsp_h
+
+#include &lt;avr/io.h&gt;
+#include &quot;Wprogram.h&quot;
+#include &lt;message.h&gt;                                                // AVR I/O
+
+                                                 // Sys timer tick per seconds
+#define BSP_TICKS_PER_SEC    100
+
+
+void BSP_init(void);
+
+
+//////////////////////////////////////////////////////////////////////////////
+// NOTE: The CPU clock frequency F_CPU is defined externally for each
+// Arduino board
+
+#endif                                                                // bsp_h
+
+
+</text>
+  </file>
+  <file name="bsp.cpp">
+   <text>//////////////////////////////////////////////////////////////////////////////
+// Product: Board Support Package for Arduino UNO
+// Last Updated for Version: 4.1.06
+// Date of the Last Update:  Jan 27, 2011
+//
+//                    Q u a n t u m     L e a P s
+//                    ---------------------------
+//                    innovating embedded systems
+//
+// Copyright (C) 2002-2011 Quantum Leaps, LLC. All rights reserved.
+//
+// This software may be distributed and modified under the terms of the GNU
+// General Public License version 2 (GPL) as published by the Free Software
+// Foundation and appearing in the file GPL.TXT included in the packaging of
+// this file. Please note that GPL Section 2[b] requires that all works based
+// on this software must also be made publicly available under the terms of
+// the GPL (&quot;Copyleft&quot;).
+//
+// Alternatively, this software may be distributed and modified under the
+// terms of Quantum Leaps commercial licenses, which expressly supersede
+// the GPL and are specifically designed for licensees interested in
+// retaining the proprietary status of their code.
+//
+// Contact information:
+// Quantum Leaps Web site:  http://www.quantum-leaps.com
+// e-mail:                  info@quantum-leaps.com
+//////////////////////////////////////////////////////////////////////////////
+/**/
+/* Focus Stacking assistant bsp */
+/**/
+/* debouncing algorithm inspired by Jack Ganssle's 
+http://www.eetimes.com/discussion/break-points/4024981/My-favorite-software-debouncers
+*/
+
+#include &quot;qp_port.h&quot;
+#include &quot;fsa.h&quot;
+#include &quot;bsp.h&quot;
+//#include &quot;Wprogram.h&quot;
+
+Q_DEFINE_THIS_FILE
+
+//#define SAVE_POWER
+
+/* Buttons on  pins 7,6,5 - port D */
+
+#define BUTTON_MASK 0xe0  // 1110 0000
+#define BUTTON_PIN  PIND  //input
+#define BUTTON_PORT PORTD //output
+#define BUTTON_DDR  DDRD  //direction
+#define N_MASK 0x80    //near button
+#define F_MASK 0x40    //far button
+#define G_MASK 0x20    //go button
+
+#define DEB_CHECKS 4      //debounce buffer depth
+
+uint8_t DebouncedState = 0;            //last state of buttons
+static uint8_t State[DEB_CHECKS] = {0};   //history of states
+static uint8_t Index = 0;
+
+
+
+/* LED on pin 8 */
+
+#define LED_MASK 0x01
+#define LED_DDR DDRB
+
+
+
+#define TICK_DIVIDER       ((F_CPU / BSP_TICKS_PER_SEC / 1024) - 1)
+
+#if TICK_DIVIDER &gt; 255
+#   error BSP_TICKS_PER_SEC too small
+#elif TICK_DIVIDER &lt; 2
+#   error BSP_TICKS_PER_SEC too large
+#endif
+
+
+
+
+// ISRs ----------------------------------------------------------------------
+ISR(TIMER2_COMPA_vect) {
+
+    uint8_t j = 0xff;
+    uint8_t tmpbyte;
+
+    /* read buttons and do debouncing */
+    State[ Index ] = BUTTON_PIN;
+    ++Index;
+    
+    for( uint8_t i = 0; i &lt; ( DEB_CHECKS - 1 ); i++ ) {
+        j = j &amp; State[ i ];
+    }
+    
+    tmpbyte = ( j ^ DebouncedState );
+    //Serial.println(tmpbyte, HEX );
+
+    if( tmpbyte &amp; N_MASK ) {    //near button changed
+        //Serial.println(&quot;N Changed&quot;);
+        if( j &amp; N_MASK ) {    //N open
+            AO_Controls-&gt;postFIFO(Q_NEW(QEvent, N_RELEASE_SIG));
+            //QF::publish(Q_NEW(QEvent, N_RELEASE_SIG));
+        }
+        else {                //N closed
+            AO_Controls-&gt;postFIFO(Q_NEW(QEvent, N_PRESS_SIG));
+            //QF::publish(Q_NEW(QEvent, KEY_PRESSED_SIG));
+        }
+    }//if( tmpbyte &amp; N_MASK ...
+            
+    if( tmpbyte &amp; F_MASK ) {    //near button changed
+        if( j &amp; F_MASK ) {    //F open
+            AO_Controls-&gt;postFIFO(Q_NEW(QEvent, F_RELEASE_SIG));
+            //QF::publish(Q_NEW(QEvent, F_RELEASE_SIG));
+        }
+        else {                //F closed
+            AO_Controls-&gt;postFIFO(Q_NEW(QEvent, F_PRESS_SIG));
+            //QF::publish(Q_NEW(QEvent, KEY_PRESSED_SIG));
+        }
+    }//if( tmpbyte &amp; F_MASK ...
+
+    if( tmpbyte &amp; G_MASK ) {    //near button changed
+        if( j &amp; G_MASK ) {    //G open
+            AO_Controls-&gt;postFIFO(Q_NEW(QEvent, G_RELEASE_SIG));
+            //QF::publish(Q_NEW(QEvent, G_RELEASE_SIG));
+        }
+        else {                //G closed
+            AO_Controls-&gt;postFIFO(Q_NEW(QEvent, G_PRESS_SIG));
+            //QF::publish(Q_NEW(QEvent, KEY_PRESSED_SIG));
+        }
+    }//if( tmpbyte &amp; G_MASK ...
+
+    DebouncedState = j;    
+    
+    if( Index &gt;= DEB_CHECKS ) { //ring maintenance
+        Index = 0;
+    }   
+    // No need to clear the interrupt source since the Timer2 compare
+    // interrupt is automatically cleard in hardware when the ISR runs.
+
+    QF::tick();                               // process all armed time events
+
+    
+
+}
+
+//............................................................................
+void BSP_init(void) {
+    
+    BUTTON_DDR = BUTTON_DDR &amp; ~BUTTON_MASK;  //switch button pins to input
+    BUTTON_PORT = BUTTON_PORT | BUTTON_MASK; //turn on pullups
+    LED_DDR |= LED_MASK;
+    
+
+    Serial.begin(115200);   // set the highest stanard baud rate of 115200 bps
+    Serial.println(&quot;Start&quot;);
+    //Notify(PSTR(&quot;Start\r\n&quot;));
+
+    if (O_usb-&gt;Init() == -1) {                             //Initialize USB        
+        Notify(PSTR(&quot;OSCOKIRQ failed to assert.\r\n&quot;));
+        }
+    
+
+}
+//............................................................................
+void QF::onStartup(void) {
+          // set Timer2 in CTC mode, 1/1024 prescaler, start the timer ticking
+    TCCR2A = (1 &lt;&lt; WGM21) | (0 &lt;&lt; WGM20);
+    TCCR2B = (1 &lt;&lt; CS22 ) | (1 &lt;&lt; CS21) | (1 &lt;&lt; CS20);               // 1/2^10
+    ASSR &amp;= ~(1 &lt;&lt; AS2);
+    TIMSK2 = (1 &lt;&lt; OCIE2A);                 // Enable TIMER2 compare Interrupt
+    TCNT2 = 0;
+    OCR2A = TICK_DIVIDER;     // must be loaded last for Atmega168 and friends
+}
+//............................................................................
+void QF::onCleanup(void) {
+}
+//............................................................................
+void QF::onIdle(QF_INT_KEY_TYPE key) {
+
+
+#ifdef SAVE_POWER
+
+    SMCR = (0 &lt;&lt; SM0) | (1 &lt;&lt; SE);  // idle sleep mode, adjust to your project
+
+    // never separate the following two assembly instructions, see NOTE2
+    __asm__ __volatile__ (&quot;sei&quot; &quot;\n\t&quot; :: );
+    __asm__ __volatile__ (&quot;sleep&quot; &quot;\n\t&quot; :: );
+
+    SMCR = 0;                                              // clear the SE bit
+
+#else
+    QF_INT_UNLOCK(key);
+#endif
+}
+
+
+//............................................................................
+void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line) {
+    cli();                                              // lock all interrupts                              
+    LED_ON();
+    Serial.print(&quot;ASSERT - line &quot;);
+    Serial.println(line);
+    asm volatile (&quot;jmp 0x0000&quot;);    // perform a software reset of the Arduino
+}
+
+// NOTE2:
+// The QF_onIdle() callback is called with interrupts *locked* to prevent
+// a race condtion of posting a new event from an interrupt while the
+// system is already committed to go to sleep. The only *safe* way of
+// going to sleep mode is to do it ATOMICALLY with enabling interrupts.
+// As described in the &quot;AVR Datasheet&quot; in Section &quot;Reset and Interrupt
+// Handling&quot;, when using the SEI instruction to enable interrupts, the
+// instruction following SEI will be executed before any pending interrupts.
+// As the Datasheet shows in the assembly example, the pair of instructions
+//     SEI       ; enable interrupts
+//     SLEEP     ; go to the sleep mode
+// executes ATOMICALLY, and so *no* interrupt can be serviced between these
+// instructins. You should NEVER separate these two lines.
+//
+</text>
+  </file>
+  <file name="fsa.h">
+   <text>/* Focus Stacking Assistant main header */
+
+#ifndef fsa_h
+#define fsa_h
+
+#include &quot;Usb.h&quot;
+
+enum FsaSignals {
+    //controller signals
+    FOCUS_MOVED_SIG = Q_USER_SIG,    //near step
+    NEAR_STEP_SIG,
+    FAR_STEP_SIG,
+    //MAX_PUB_SIG,
+    CAPTURE_SIG,
+    //CMD_COMPLETE_SIG,
+    FM_COMPLETE_SIG,
+    FM_ERROR_SIG,
+    CAP_COMPLETE_SIG,
+    NEAR_SET_SIG,
+    FAR_SET_SIG,
+    RUN_SIG,
+    FREERUN_SIG,
+    SHOOT_SIG,
+    //button signals    
+    N_PRESS_SIG,
+    N_RELEASE_SIG,
+    N_TIMEOUT_SIG,
+    F_PRESS_SIG,               //far
+    F_RELEASE_SIG,
+    F_TIMEOUT_SIG,    
+    G_PRESS_SIG,               //go
+    G_RELEASE_SIG,
+    G_TIMEOUT_SIG,
+    LP_TIMEOUT_SIG,
+    //camera signals
+    CAM_READY_SIG,
+    CAM_DISC_SIG,
+    //LED signals
+    LED_IDLE_SIG,
+    LED_WORKING_SIG,
+    LED_ERROR_SIG,
+    LED_PER_TIMEOUT_SIG,
+    LED_ON_TIMEOUT_SIG,
+    LED_WORK_TIMEOUT_SIG,        
+    LED_TIMEOUT_SIG,
+    USB_TICK_SIG,
+    CMD_DELAY_SIG,
+    CAP_DELAY_SIG,
+    /**/
+    MAX_SIG
+};
+
+
+#define LED_ON()      (PORTB |= (1 &lt;&lt; (0)))
+#define LED_OFF()     (PORTB &amp;= ~(1 &lt;&lt; (0)))
+
+//focus step commands
+#define N_STEP1 0x0001
+#define N_STEP2 0x0002
+#define N_STEP3 0x0003
+#define F_STEP1 0x8001
+#define F_STEP2 0x8002
+#define F_STEP3 0x8003
+
+/* redefine lens motor step here */
+#define NSTEP N_STEP2
+#define FSTEP F_STEP2 
+
+$declare(Events::FocusMovedEvt)
+
+// active objects ............................................................
+$declare(AOs::AO_Controls)    // &quot;opaque&quot; pointer to Controls AO
+$declare(AOs::AO_Camera)      //&quot;opaque&quot; pointer to Camera AO
+$declare(AOs::AO_Lights)        //&quot;opaque&quot; pointer to Lights AO
+$declare(AOs::AO_Usbtask)        //&quot;opaque&quot; pointer to Usbtask AO
+$declare(AOs::AO_Commands)        //&quot;opaque&quot; pointer to Commands AO
+$declare(AOs::O_usb)            //pointer to Usb
+
+
+#endif                                                            // fsa_h
+</text>
+  </file>
+  <file name="controls.cpp">
+   <text>#include &quot;qp_port.h&quot;
+#include &quot;bsp.h&quot;
+#include &quot;fsa.h&quot;
+#include &quot;ptp.h&quot;
+
+
+Q_DEFINE_THIS_FILE
+
+#define LP_TIMEOUT BSP_TICKS_PER_SEC    //long press time
+
+//Controls class
+$declare(AOs::Controls)
+
+//Local objects
+static Controls l_Controls;
+
+//Global objects
+QActive * const AO_Controls = &amp;l_Controls;
+
+//Controls class definition
+$define(AOs::Controls)
+
+
+
+
+
+
+</text>
+  </file>
+  <file name="camera.cpp">
+   <text>/*
+#include &lt;avrpins.h&gt;
+#include &lt;max3421e.h&gt;
+#include &lt;usbhost.h&gt;
+#include &lt;usb_ch9.h&gt;
+#include &lt;Usb.h&gt;
+#include &lt;address.h&gt;
+
+#include &lt;parsetools.h&gt;
+
+#include &lt;ptp.h&gt;
+#include &lt;canoneos.h&gt;
+#include &lt;qp_port.h&gt;
+#include &lt;valuelist.h&gt;
+#include &lt;eosvaluetitles.h&gt;
+#include &lt;eoseventparser.h&gt;
+*/
+
+#include &quot;qp_port.h&quot;
+#include &quot;bsp.h&quot;
+#include &quot;fsa.h&quot;
+
+Q_DEFINE_THIS_FILE
+
+/*
+#define STEP_N1 0x01
+#define STEP_N2 0x02
+#define STEP_N3 0x03
+#define STEP_F1 0x8001
+#define STEP_F2 0x8002
+#define STEP_F3 0x8003
+
+#define COMMAND_DELAY BSP_TICKS_PER_SEC/10
+
+class CamStateHandlers : public EOSStateHandlers
+{
+      enum CamStates { stInitial, stDisconnected, stConnected };
+      CamStates stateConnected;
+    
+public:
+      CamStateHandlers() : stateConnected(stInitial) 
+      {
+      };
+      
+      virtual void OnDeviceDisconnectedState(PTP *ptp);
+      virtual void OnDeviceInitializedState(PTP *ptp);
+};
+
+CamStateHandlers    CamStates;
+USB                 Usb;
+USB* const O_usb = &amp;Usb;
+CanonEOS            Eos(&amp;Usb, &amp;CamStates);
+
+void CamStateHandlers::OnDeviceDisconnectedState(PTP *ptp)
+{
+    if (stateConnected == stConnected || stateConnected == stInitial)
+    {
+        stateConnected = stDisconnected;
+        AO_Camera-&gt;postFIFO(Q_NEW(QEvent, CAM_DISC_SIG));        
+    }
+}
+
+void CamStateHandlers::OnDeviceInitializedState(PTP *ptp)
+{
+    
+    if (stateConnected == stDisconnected || stateConnected == stInitial) {
+        stateConnected = stConnected;        
+        AO_Camera-&gt;postFIFO(Q_NEW(QEvent, CAM_READY_SIG));
+    }
+}
+*/
+
+//Camera Class
+$declare(AOs::Camera)
+
+//Local objects
+static Camera l_Camera;
+
+//Global objects
+QActive * const AO_Camera = &amp;l_Camera;
+
+//Camera Class definition
+$define(AOs::Camera)
+</text>
+  </file>
+  <file name="lights.cpp">
+   <text>#include &quot;qp_port.h&quot;
+#include &quot;bsp.h&quot;
+#include &quot;fsa.h&quot;
+
+Q_DEFINE_THIS_FILE
+
+#define LED_IDLE_PER_TIME BSP_TICKS_PER_SEC*2    //idle LED period time
+#define LED_IDLE_ON_TIME BSP_TICKS_PER_SEC/50    //idle LED on time
+#if LED_IDLE_ON_TIME &lt; 2
+#   error LED Idle On Time: BSP_TICKS_PER_SEC too small
+#endif
+
+#define LED_ERR_PER_TIME BSP_TICKS_PER_SEC/5    //error LED period time
+#define LED_ERR_ON_TIME BSP_TICKS_PER_SEC/10   //error LED on time
+
+#define LED_WORKING_FLASH_TIME BSP_TICKS_PER_SEC/20
+#define LED_WORKING_FLASH_CNT 1
+
+//Lights class
+$declare(AOs::Lights)
+
+//Local objects
+static Lights l_Lights;
+
+//Global objects
+QActive * const AO_Lights = &amp;l_Lights;
+
+//Lights class definition
+$define(AOs::Lights)
+</text>
+  </file>
+  <file name="usbtask.cpp">
+   <text>#include &quot;Usb.h&quot;
+#include &quot;qp_port.h&quot;
+#include &quot;bsp.h&quot;
+#include &quot;fsa.h&quot;
+
+Q_DEFINE_THIS_FILE
+
+// mult.reconnect - /2 rare
+//
+#define USB_TICK_TIME BSP_TICKS_PER_SEC/5   //Usb.Task() tick time
+
+//Usbtask Class
+$declare(AOs::Usbtask)
+
+//Local objects
+static Usbtask l_usbtask;
+
+//Global objects
+QActive * const AO_Usbtask = &amp;l_usbtask;
+
+//Lights class definition
+$define(AOs::Usbtask)
+</text>
+  </file>
+  <file name="commands.cpp">
+   <text>#include &lt;avrpins.h&gt;
+#include &lt;max3421e.h&gt;
+#include &lt;usbhost.h&gt;
+#include &lt;usb_ch9.h&gt;
+#include &lt;Usb.h&gt;
+#include &lt;address.h&gt;
+
+#include &lt;parsetools.h&gt;
+
+#include &lt;ptp.h&gt;
+#include &lt;canoneos.h&gt;
+#include &lt;qp_port.h&gt;
+#include &lt;valuelist.h&gt;
+#include &lt;eosvaluetitles.h&gt;
+#include &lt;eoseventparser.h&gt;
+
+#include &quot;qp_port.h&quot;
+#include &quot;bsp.h&quot;
+#include &quot;fsa.h&quot;
+
+Q_DEFINE_THIS_FILE
+
+/*
+#define STEP_N1 0x01
+#define STEP_N2 0x02
+#define STEP_N3 0x03
+#define STEP_F1 0x8001
+#define STEP_F2 0x8002
+#define STEP_F3 0x8003
+*/
+
+#define FM_CMD_DELAY BSP_TICKS_PER_SEC/5
+#define CAP_CMD_DELAY BSP_TICKS_PER_SEC*3
+
+class CamStateHandlers : public EOSStateHandlers
+{
+      enum CamStates { stInitial, stDisconnected, stConnected };
+      CamStates stateConnected;
+    
+public:
+      CamStateHandlers() : stateConnected(stInitial) 
+      {
+      };
+      
+      virtual void OnDeviceDisconnectedState(PTP *ptp);
+      virtual void OnDeviceInitializedState(PTP *ptp);
+};
+
+CamStateHandlers    CamStates;
+USB                 Usb;
+USB* const O_usb = &amp;Usb;
+CanonEOS            Eos(&amp;Usb, &amp;CamStates);
+
+void CamStateHandlers::OnDeviceDisconnectedState(PTP *ptp)
+{
+    if (stateConnected == stConnected || stateConnected == stInitial)
+    {
+        stateConnected = stDisconnected;
+        AO_Camera-&gt;postFIFO(Q_NEW(QEvent, CAM_DISC_SIG));        
+    }
+}
+
+void CamStateHandlers::OnDeviceInitializedState(PTP *ptp)
+{
+    uint16_t ptp_error;
+    
+    if (stateConnected == stDisconnected || stateConnected == stInitial) {
+        stateConnected = stConnected;
+
+    if((ptp_error = Eos.SetProperty(EOS_DPC_LiveView, 0)) != PTP_RC_OK) {    //turn off live view
+        PTPTRACE2(&quot;AO Camera: LiveView off failed&quot;, ptp_error);
+    }
+
+    if((ptp_error = Eos.SetProperty(EOS_DPC_LiveView, 2)) != PTP_RC_OK) {    //turn on live view
+        PTPTRACE2(&quot;AO Camera: LiveView mode 2 failed&quot;, ptp_error);
+    }
+        
+        AO_Camera-&gt;postFIFO(Q_NEW(QEvent, CAM_READY_SIG));
+    }//if(stateConnected...
+}
+
+
+//Commands class
+$declare(AOs::Commands)
+
+//Local objects
+static Commands l_Commands;
+
+//Global objects
+QActive * const AO_Commands = &amp;l_Commands;
+
+//Commandss class definition
+$define(AOs::Commands)
+</text>
+  </file>
+ </filesystem>
+</model>

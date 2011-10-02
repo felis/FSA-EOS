@@ -1,0 +1,8 @@
+This is Focus Stacking Assistant code for Canon EOS cameras - newer models with LiveView function.
+Expects Arduino board and Circuits@Home USB Host Shield (board rev.2.0) - http://www.circuitsathome.com/arduino_usb_host_shield_projects .
+Depends on:
+  USB Host Shield Library rev.2.0 - https://github.com/felis/USB_Host_Shield_2.0
+  PTP digital camera control library rev.2.0
+  Quantum Leaps QP/QM - http://www.state-machine.com/
+  
+Project web site - http://www.circuitsathome.com
