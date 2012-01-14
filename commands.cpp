@@ -38,7 +38,7 @@ Q_DEFINE_THIS_FILE
 #define STEP_F3 0x8003
 */
 
-#define FM_CMD_DELAY BSP_TICKS_PER_SEC/5
+#define FM_CMD_DELAY BSP_TICKS_PER_SEC/2
 #define CAP_CMD_DELAY BSP_TICKS_PER_SEC*3
 
 class CamStateHandlers : public EOSStateHandlers

@@ -562,7 +562,14 @@ AO_Camera-&gt;postFIFO(Q_NEW(QEvent, CAP_COMPLETE_SIG));</exit>
 #define bsp_h
 
 #include &lt;avr/io.h&gt;
-#include &quot;Wprogram.h&quot;
+
+
+#if defined(ARDUINO) &amp;&amp; ARDUINO &gt;=100
+#include &quot;Arduino.h&quot;
+#else
+#include &lt;WProgram.h&gt;
+#endif
+
 #include &lt;message.h&gt;                                                // AVR I/O
 
                                                  // Sys timer tick per seconds
@@ -758,6 +765,7 @@ void QF::onStartup(void) {
 void QF::onCleanup(void) {
 }
 //............................................................................
+#if (QP_VERSION &lt; 0x4300 )
 void QF::onIdle(QF_INT_KEY_TYPE key) {
 
 
@@ -775,6 +783,27 @@ void QF::onIdle(QF_INT_KEY_TYPE key) {
     QF_INT_UNLOCK(key);
 #endif
 }
+
+#else //#if (QP_VERSION &lt; 0x4300
+
+void QF::onIdle() {
+
+#ifdef SAVE_POWER
+
+    SMCR = (0 &lt;&lt; SM0) | (1 &lt;&lt; SE);  // idle sleep mode, adjust to your project
+
+    // never separate the following two assembly instructions, see NOTE2
+    __asm__ __volatile__ (&quot;sei&quot; &quot;\n\t&quot; :: );
+    __asm__ __volatile__ (&quot;sleep&quot; &quot;\n\t&quot; :: );
+
+    SMCR = 0;                                              // clear the SE bit
+
+#else
+    QF_INT_ENABLE();
+#endif
+} 
+
+#endif //#if (QP_VERSION &lt; 0x4300
 
 
 //............................................................................
@@ -1090,7 +1119,7 @@ Q_DEFINE_THIS_FILE
 #define STEP_F3 0x8003
 */
 
-#define FM_CMD_DELAY BSP_TICKS_PER_SEC/5
+#define FM_CMD_DELAY BSP_TICKS_PER_SEC/2
 #define CAP_CMD_DELAY BSP_TICKS_PER_SEC*3
 
 class CamStateHandlers : public EOSStateHandlers

@@ -183,6 +183,7 @@ void QF::onStartup(void) {
 void QF::onCleanup(void) {
 }
 //............................................................................
+#if (QP_VERSION < 0x4300 )
 void QF::onIdle(QF_INT_KEY_TYPE key) {
 
 
@@ -200,6 +201,27 @@ void QF::onIdle(QF_INT_KEY_TYPE key) {
     QF_INT_UNLOCK(key);
 #endif
 }
+
+#else //#if (QP_VERSION < 0x4300
+
+void QF::onIdle() {
+
+#ifdef SAVE_POWER
+
+    SMCR = (0 << SM0) | (1 << SE);  // idle sleep mode, adjust to your project
+
+    // never separate the following two assembly instructions, see NOTE2
+    __asm__ __volatile__ ("sei" "\n\t" :: );
+    __asm__ __volatile__ ("sleep" "\n\t" :: );
+
+    SMCR = 0;                                              // clear the SE bit
+
+#else
+    QF_INT_ENABLE();
+#endif
+}
+
+#endif //#if (QP_VERSION < 0x4300
 
 
 //............................................................................
